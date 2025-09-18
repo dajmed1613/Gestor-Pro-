@@ -293,8 +293,23 @@
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // =====================================================================================
+        // == PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ ===========================================
+        // =====================================================================================
+        // 1. Ve a tu proyecto en la consola de Firebase.
+        // 2. Haz clic en el ícono de engranaje (Configuración del proyecto).
+        // 3. En la pestaña "General", baja hasta "Tus apps".
+        // 4. Busca la sección "Configuración de SDK" y selecciona "Configuración".
+        // 5. Copia el objeto firebaseConfig completo y pégalo aquí abajo, reemplazando este objeto de ejemplo.
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+        // =====================================================================================
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -575,7 +590,7 @@
                 if (productsToImport.length > 0) {
                     try {
                         const batch = writeBatch(db);
-                        const productsPath = `artifacts/${appId}/users/${userId}/products`;
+                        const productsPath = `users/${userId}/products`;
                         productsToImport.forEach(product => {
                             const newProductRef = doc(collection(db, productsPath));
                             batch.set(newProductRef, product);
@@ -650,7 +665,7 @@
             }
             
             const productData = { name, description, quantity, purchasePrice, sellingPrice, userId };
-            const productsPath = `artifacts/${appId}/users/${userId}/products`;
+            const productsPath = `users/${userId}/products`;
             
             try {
                 if (id) {
@@ -702,7 +717,7 @@
 
         document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
             if (!productToDeleteId || !userId) return;
-            const productsPath = `artifacts/${appId}/users/${userId}/products`;
+            const productsPath = `users/${userId}/products`;
             try {
                 await deleteDoc(doc(db, productsPath, productToDeleteId));
             } catch (error) { 
@@ -878,8 +893,8 @@
              
              try {
                 const batch = writeBatch(db);
-                const productsPath = `artifacts/${appId}/users/${userId}/products`;
-                const salesPath = `artifacts/${appId}/users/${userId}/sales`;
+                const productsPath = `users/${userId}/products`;
+                const salesPath = `users/${userId}/sales`;
                 
                 saleItems.forEach(item => {
                     const productRef = doc(db, productsPath, item.productId);
@@ -998,8 +1013,8 @@
              
              try {
                 const batch = writeBatch(db);
-                const productsPath = `artifacts/${appId}/users/${userId}/products`;
-                const purchasesPath = `artifacts/${appId}/users/${userId}/purchases`;
+                const productsPath = `users/${userId}/products`;
+                const purchasesPath = `users/${userId}/purchases`;
                 
                 purchaseItems.forEach(item => {
                     const productRef = doc(db, productsPath, item.productId);
@@ -1075,9 +1090,9 @@
             unsubscribeSales();
             unsubscribePurchases();
 
-            const productsPath = `artifacts/${appId}/users/${userId}/products`;
-            const salesPath = `artifacts/${appId}/users/${userId}/sales`;
-            const purchasesPath = `artifacts/${appId}/users/${userId}/purchases`;
+            const productsPath = `users/${userId}/products`;
+            const salesPath = `users/${userId}/sales`;
+            const purchasesPath = `users/${userId}/purchases`;
             
             const qProducts = query(collection(db, productsPath), where("userId", "==", userId));
             unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
@@ -1108,3 +1123,4 @@
     </script>
 </body>
 </html>
+
