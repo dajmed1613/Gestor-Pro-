@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Inventario y Ventas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal-hidden { display: none; }
+        .modal-visible { display: flex; }
+        .nav-link.active { background-color: #3b82f6; color: white; }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <!-- Contenedor de Autenticación -->
+    <div id="auth-container" class="min-h-screen flex items-center justify-center">
+        <div class="w-full max-w-md bg-gray-800 p-8 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-blue-400 mb-6 text-center">Gestor Pro</h1>
+            <div id="auth-error" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-sm hidden"></div>
+            <!-- Formulario de Login -->
+            <form id="login-form">
+                <div class="space-y-4">
+                    <input type="email" id="login-email" placeholder="Correo Electrónico" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required>
+                    <input type="password" id="login-password" placeholder="Contraseña" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required>
+                </div>
+                <button type="submit" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg">Iniciar Sesión</button>
+            </form>
+            <!-- Formulario de Registro -->
+            <form id="signup-form" class="hidden">
+                 <div class="space-y-4">
+                    <input type="email" id="signup-email" placeholder="Correo Electrónico" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required>
+                    <input type="password" id="signup-password" placeholder="Contraseña (mínimo 6 caracteres)" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required>
+                </div>
+                <button type="submit" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">Crear Cuenta</button>
+            </form>
+            <p class="text-center text-sm text-gray-400 mt-6">
+                <span id="login-link-text">¿No tienes cuenta? <a href="#" id="show-signup" class="text-blue-400 hover:underline">Crea una</a></span>
+                <span id="signup-link-text" class="hidden">¿Ya tienes cuenta? <a href="#" id="show-login" class="text-blue-400 hover:underline">Inicia Sesión</a></span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Contenedor Principal de la App -->
+    <div id="app-container" class="hidden">
+        <div class="flex h-screen">
+            <!-- Sidebar de Navegación -->
+            <aside class="w-64 bg-gray-800 p-4 flex flex-col">
+                <h1 class="text-2xl font-bold text-blue-400 mb-8">Gestor Pro</h1>
+                <nav class="flex flex-col space-y-2">
+                    <a href="#" id="nav-dashboard" class="nav-link active px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors">Dashboard</a>
+                    <a href="#" id="nav-inventory" class="nav-link px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors">Inventario</a>
+                    <a href="#" id="nav-sales" class="nav-link px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors">Realizar Venta</a>
+                    <a href="#" id="nav-purchases" class="nav-link px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors">Registrar Compra</a>
+                </nav>
+                <div class="mt-auto text-xs text-gray-500">
+                    <p>Usuario:</p>
+                    <p id="user-email" class="break-words font-medium text-gray-300"></p>
+                    <button id="signout-btn" class="w-full mt-4 text-left text-red-400 hover:underline">Cerrar Sesión</button>
+                </div>
+            </aside>
+
+            <!-- Contenido Principal -->
+            <main class="flex-1 p-6 sm:p-8 overflow-y-auto">
+                <!-- Página: Dashboard -->
+                <section id="page-dashboard">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold">Dashboard</h2>
+                        <button id="analyze-sales-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">✨ Analizar Ventas</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="bg-gray-800 p-6 rounded-xl">
+                            <h3 class="text-gray-400 text-lg">Valor del Inventario</h3>
+                            <p id="dashboard-inventory-value" class="text-3xl font-bold text-green-400 mt-2">$0.00</p>
+                        </div>
+                        <div class="bg-gray-800 p-6 rounded-xl">
+                            <h3 class="text-gray-400 text-lg">Ingresos por Ventas</h3>
+                            <p id="dashboard-total-revenue" class="text-3xl font-bold text-blue-400 mt-2">$0.00</p>
+                        </div>
+                        <div class="bg-gray-800 p-6 rounded-xl">
+                            <h3 class="text-gray-400 text-lg">Egresos por Compras</h3>
+                            <p id="dashboard-total-purchases" class="text-3xl font-bold text-red-400 mt-2">$0.00</p>
+                        </div>
+                        <div class="bg-gray-800 p-6 rounded-xl">
+                            <h3 class="text-gray-400 text-lg">Productos en Stock</h3>
+                            <p id="dashboard-products-count" class="text-3xl font-bold mt-2">0</p>
+                        </div>
+                    </div>
+                     <div class="mt-8 bg-gray-800 p-6 rounded-xl">
+                        <h3 class="text-xl font-bold mb-4">Ventas Recientes</h3>
+                        <div id="dashboard-recent-sales" class="max-h-80 overflow-y-auto">
+                            <p class="text-gray-500">No hay ventas registradas aún.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Página: Inventario -->
+                <section id="page-inventory" class="hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold">Inventario</h2>
+                        <div class="flex space-x-2">
+                            <button id="import-csv-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg">Importar desde CSV</button>
+                            <button id="export-csv-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Exportar a CSV</button>
+                            <button id="add-product-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Añadir Producto</button>
+                        </div>
+                    </div>
+                    <input type="file" id="csv-file-input" class="hidden" accept=".csv">
+                    <div class="bg-gray-800 rounded-xl overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th class="p-4">Producto</th>
+                                    <th class="p-4">Descripción</th>
+                                    <th class="p-4">Cantidad</th>
+                                    <th class="p-4">Precio Compra</th>
+                                    <th class="p-4">Precio Venta</th>
+                                    <th class="p-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table-body">
+                               <!-- Las filas de productos se insertarán aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Página: Realizar Venta -->
+                <section id="page-sales" class="hidden">
+                    <h2 class="text-3xl font-bold mb-6">Realizar Venta</h2>
+                    <div class="bg-gray-800 p-6 rounded-xl">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label for="client-name" class="block text-sm font-medium text-gray-400 mb-1">Nombre del Cliente</label>
+                                <input type="text" id="client-name" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Ej: Juan Pérez" required>
+                            </div>
+                            <div>
+                                <label for="client-phone" class="block text-sm font-medium text-gray-400 mb-1">Teléfono (Opcional)</label>
+                                <input type="tel" id="client-phone" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Ej: 3001234567">
+                            </div>
+                        </div>
+                        <div id="sale-items-container" class="space-y-4 mb-4">
+                            <!-- Items de venta se añadirán aquí -->
+                        </div>
+                        <button id="add-sale-item-btn" class="text-blue-400 hover:text-blue-300 mb-6">+ Añadir otro producto</button>
+                        <div class="border-t border-gray-700 pt-4 mt-4 text-right">
+                            <p class="text-2xl font-bold">Total: <span id="sale-total" class="text-green-400">$0.00</span></p>
+                        </div>
+                        <button id="process-sale-btn" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">Procesar Venta</button>
+                    </div>
+                </section>
+
+                <!-- Página: Registrar Compra -->
+                <section id="page-purchases" class="hidden">
+                    <h2 class="text-3xl font-bold mb-6">Registrar Compra</h2>
+                    <div class="bg-gray-800 p-6 rounded-xl">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label for="supplier-name" class="block text-sm font-medium text-gray-400 mb-1">Nombre del Proveedor</label>
+                                <input type="text" id="supplier-name" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Ej: Proveedor XYZ" required>
+                            </div>
+                             <div>
+                                <label for="supplier-phone" class="block text-sm font-medium text-gray-400 mb-1">Teléfono (Opcional)</label>
+                                <input type="tel" id="supplier-phone" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Ej: 3001234567">
+                            </div>
+                        </div>
+                        <div id="purchase-items-container" class="space-y-4 mb-4">
+                            <!-- Items de compra se añadirán aquí -->
+                        </div>
+                        <button id="add-purchase-item-btn" class="text-blue-400 hover:text-blue-300 mb-6">+ Añadir otro producto</button>
+                        <div class="border-t border-gray-700 pt-4 mt-4 text-right">
+                            <p class="text-2xl font-bold">Costo Total: <span id="purchase-total" class="text-red-400">$0.00</span></p>
+                        </div>
+                        <button id="process-purchase-btn" class="w-full mt-6 bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg">Registrar Compra</button>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+
+    <!-- MODALES DE LA APLICACIÓN -->
+
+    <!-- Modal para Añadir/Editar Producto -->
+    <div id="product-modal" class="modal-hidden fixed inset-0 bg-black bg-opacity-70 items-center justify-center z-50 overflow-y-auto">
+        <div class="bg-gray-800 p-8 rounded-xl w-full max-w-md">
+            <h2 id="modal-title" class="text-2xl font-bold mb-6">Añadir Producto</h2>
+            <form id="product-form">
+                <input type="hidden" id="product-id">
+                <div class="space-y-4">
+                    <div>
+                        <label for="product-name" class="block text-sm font-medium text-gray-400 mb-1">Nombre del Producto</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="product-name" class="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg" required>
+                            <button type="button" id="generate-description-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded-lg text-sm" title="Generar descripción con IA">✨ Generar</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="product-description" class="block text-sm font-medium text-gray-400 mb-1">Descripción</label>
+                        <textarea id="product-description" rows="3" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Descripción del producto..."></textarea>
+                    </div>
+                    <div>
+                        <label for="product-quantity" class="block text-sm font-medium text-gray-400 mb-1">Cantidad</label>
+                        <input type="number" id="product-quantity" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required min="0">
+                    </div>
+                    <div>
+                        <label for="product-purchase-price" class="block text-sm font-medium text-gray-400 mb-1">Precio de Compra ($)</label>
+                        <input type="number" id="product-purchase-price" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required min="0" step="0.01">
+                    </div>
+                    <div>
+                        <label for="product-selling-price" class="block text-sm font-medium text-gray-400 mb-1">Precio de Venta ($)</label>
+                        <input type="number" id="product-selling-price" class="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg" required min="0" step="0.01">
+                    </div>
+                </div>
+                <div id="product-modal-error" class="text-red-400 text-sm mt-4 hidden"></div>
+                <div class="mt-8 flex justify-end space-x-4">
+                    <button type="button" id="cancel-product-modal" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Borrado -->
+    <div id="delete-confirm-modal" class="modal-hidden fixed inset-0 bg-black bg-opacity-70 items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-xl w-full max-w-sm">
+            <h2 class="text-xl font-bold mb-4">Confirmar Eliminación</h2>
+            <p class="text-gray-400 mb-6">¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.</p>
+            <div class="flex justify-end space-x-4">
+                <button type="button" id="cancel-delete-btn" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">Cancelar</button>
+                <button type="button" id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Análisis de Ventas con IA -->
+    <div id="analysis-modal" class="modal-hidden fixed inset-0 bg-black bg-opacity-70 items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-xl w-full max-w-2xl">
+            <div class="flex justify-between items-start mb-4">
+                <h2 class="text-2xl font-bold text-purple-400">✨ Análisis de Ventas</h2>
+                <button id="close-analysis-modal" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-2 text-gray-300">Productos Más Vendidos (por cantidad)</h3>
+                <canvas id="sales-chart"></canvas>
+            </div>
+            <div>
+                 <h3 class="text-lg font-semibold mb-2 text-gray-300">Resumen y Sugerencias IA</h3>
+                 <div id="analysis-content" class="text-gray-300 prose">
+                    <!-- El contenido generado por IA irá aquí -->
+                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Importación CSV -->
+    <div id="import-modal" class="modal-hidden fixed inset-0 bg-black bg-opacity-70 items-center justify-center z-50">
+        <div class="bg-gray-800 p-8 rounded-xl w-full max-w-lg">
+            <h2 class="text-2xl font-bold mb-4">Importar Productos desde CSV</h2>
+            <p class="text-gray-400 mb-6">Selecciona un archivo .csv para importar tus productos. Asegúrate de que el archivo tenga las siguientes columnas en el orden correcto:</p>
+            <div class="bg-gray-900 p-4 rounded-lg text-sm font-mono text-gray-300 mb-6">
+                Nombre,Descripción,Cantidad,Precio Compra,Precio Venta
+            </div>
+            <p class="text-xs text-gray-500 mb-6">La primera fila debe contener estos encabezados exactos. No incluyas el símbolo de moneda en los precios.</p>
+            <div class="flex justify-end space-x-4">
+                <button type="button" id="cancel-import-btn" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg">Cancelar</button>
+                <button type="button" id="confirm-import-btn" class="bg-teal-600 hover:bg-teal-700 text-white py-2 px-4 rounded-lg">Seleccionar Archivo</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // --- IMPORTS Y CONFIGURACIÓN DE FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let userId = null;
+        let productsCache = [];
+        let salesCache = [];
+        let purchasesCache = [];
+        let productToDeleteId = null;
+        let salesChartInstance = null;
+
+        let unsubscribeProducts = () => {};
+        let unsubscribeSales = () => {};
+        let unsubscribePurchases = () => {};
+        
+        // --- ELEMENTOS DEL DOM ---
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const authErrorEl = document.getElementById('auth-error');
+
+        // --- FUNCIÓN PARA LLAMAR A LA API DE GEMINI ---
+        async function callGemini(prompt) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const result = await response.json();
+                return result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            } catch (error) {
+                console.error("Error llamando a la API de Gemini:", error);
+                return "Hubo un error al contactar la IA.";
+            }
+        }
+        
+        // --- MANEJO DE AUTENTICACIÓN ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Usuario ha iniciado sesión
+                userId = user.uid;
+                document.getElementById('user-email').textContent = user.email;
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                setupRealtimeListeners();
+            } else {
+                // Usuario ha cerrado sesión
+                userId = null;
+                appContainer.classList.add('hidden');
+                authContainer.classList.remove('hidden');
+                // Detener listeners
+                unsubscribeProducts();
+                unsubscribeSales();
+                unsubscribePurchases();
+                // Limpiar UI
+                productsCache = [];
+                salesCache = [];
+                purchasesCache = [];
+                renderInventory([]);
+                updateDashboard([], [], []);
+            }
+        });
+        
+        // --- MANEJO DE FORMULARIOS DE AUTENTICACIÓN ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            authErrorEl.classList.add('hidden');
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                authErrorEl.textContent = "Correo o contraseña incorrectos.";
+                authErrorEl.classList.remove('hidden');
+                console.error("Login Error:", error);
+            }
+        });
+        
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            authErrorEl.classList.add('hidden');
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                if (error.code === 'auth/email-already-in-use') {
+                    authErrorEl.textContent = "Este correo ya está registrado.";
+                } else if (error.code === 'auth/weak-password') {
+                     authErrorEl.textContent = "La contraseña debe tener al menos 6 caracteres.";
+                } else if (error.code === 'auth/operation-not-allowed') {
+                     authErrorEl.textContent = "Error: El inicio de sesión por correo no está activado. Por favor, actívalo en tu consola de Firebase > Authentication > Sign-in method.";
+                } else {
+                    authErrorEl.textContent = "Error al crear la cuenta.";
+                }
+                authErrorEl.classList.remove('hidden');
+                console.error("Signup Error:", error);
+            }
+        });
+
+        document.getElementById('signout-btn').addEventListener('click', () => {
+            signOut(auth);
+        });
+        
+        // --- CAMBIAR ENTRE LOGIN Y SIGNUP ---
+        const loginLinkText = document.getElementById('login-link-text');
+        const signupLinkText = document.getElementById('signup-link-text');
+
+        document.getElementById('show-signup').addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            signupForm.classList.remove('hidden');
+            loginLinkText.classList.add('hidden');
+            signupLinkText.classList.remove('hidden');
+            authErrorEl.classList.add('hidden');
+        });
+
+        document.getElementById('show-login').addEventListener('click', (e) => {
+            e.preventDefault();
+            signupForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            signupLinkText.classList.add('hidden');
+            loginLinkText.classList.remove('hidden');
+            authErrorEl.classList.add('hidden');
+        });
+
+        // --- NAVEGACIÓN ---
+        const navLinks = { 
+            dashboard: document.getElementById('nav-dashboard'), 
+            inventory: document.getElementById('nav-inventory'), 
+            sales: document.getElementById('nav-sales'),
+            purchases: document.getElementById('nav-purchases')
+        };
+        const pages = { 
+            dashboard: document.getElementById('page-dashboard'), 
+            inventory: document.getElementById('page-inventory'), 
+            sales: document.getElementById('page-sales'),
+            purchases: document.getElementById('page-purchases')
+        };
+
+        function switchPage(pageName) {
+            Object.keys(pages).forEach(key => {
+                pages[key].classList.add('hidden');
+                navLinks[key].classList.remove('active');
+            });
+            pages[pageName].classList.remove('hidden');
+            navLinks[pageName].classList.add('active');
+        }
+
+        navLinks.dashboard.addEventListener('click', (e) => { e.preventDefault(); switchPage('dashboard'); });
+        navLinks.inventory.addEventListener('click', (e) => { e.preventDefault(); switchPage('inventory'); });
+        navLinks.sales.addEventListener('click', (e) => { e.preventDefault(); switchPage('sales'); });
+        navLinks.purchases.addEventListener('click', (e) => { e.preventDefault(); switchPage('purchases'); });
+        
+        // --- FORMATO DE MONEDA ---
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(value || 0);
+        }
+
+        // --- LÓGICA DE INVENTARIO ---
+        const inventoryTableBody = document.getElementById('inventory-table-body');
+        const productModal = document.getElementById('product-modal');
+        const productForm = document.getElementById('product-form');
+        
+        function renderInventory(products) {
+            inventoryTableBody.innerHTML = '';
+            if (products.length === 0) {
+                 inventoryTableBody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No hay productos en el inventario.</td></tr>`;
+                 return;
+            }
+            products.forEach(product => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-700 hover:bg-gray-700/50';
+                row.innerHTML = `
+                    <td class="p-4 font-medium">${product.name}</td>
+                    <td class="p-4 text-sm text-gray-400 max-w-xs truncate" title="${product.description || ''}">${product.description || 'N/A'}</td>
+                    <td class="p-4">${product.quantity}</td>
+                    <td class="p-4">${formatCurrency(product.purchasePrice)}</td>
+                    <td class="p-4">${formatCurrency(product.sellingPrice)}</td>
+                    <td class="p-4">
+                        <button class="edit-btn p-1 text-blue-400 hover:text-blue-300" data-id="${product.id}">Editar</button>
+                        <button class="delete-btn p-1 text-red-400 hover:text-red-300" data-id="${product.id}">Eliminar</button>
+                    </td>
+                `;
+                inventoryTableBody.appendChild(row);
+            });
+        }
+        
+        // --- EXPORTAR A CSV ---
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            if (productsCache.length === 0) { alert("No hay productos para exportar."); return; }
+            const headers = ["Nombre", "Descripción", "Cantidad", "Precio Compra", "Precio Venta"];
+            const rows = productsCache.map(p => {
+                const name = `"${String(p.name || '').replace(/"/g, '""')}"`;
+                const desc = `"${String(p.description || '').replace(/"/g, '""')}"`;
+                return [name, desc, p.quantity, p.purchasePrice, p.sellingPrice].join(',');
+            });
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "inventario.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // --- IMPORTAR DESDE CSV ---
+        const importModal = document.getElementById('import-modal');
+        const csvFileInput = document.getElementById('csv-file-input');
+        
+        document.getElementById('import-csv-btn').addEventListener('click', () => {
+            importModal.classList.remove('modal-hidden');
+            importModal.classList.add('modal-visible');
+        });
+
+        document.getElementById('cancel-import-btn').addEventListener('click', () => {
+            importModal.classList.add('modal-hidden');
+            importModal.classList.remove('modal-visible');
+        });
+
+        document.getElementById('confirm-import-btn').addEventListener('click', () => {
+            csvFileInput.click();
+        });
+
+        csvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const text = e.target.result;
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+
+                if (lines.length < 2) {
+                    alert("El archivo CSV está vacío o solo contiene la cabecera.");
+                    return;
+                }
+
+                const header = lines[0].split(',').map(h => h.trim());
+                const expectedHeader = ["Nombre", "Descripción", "Cantidad", "Precio Compra", "Precio Venta"];
+                if (JSON.stringify(header) !== JSON.stringify(expectedHeader)) {
+                    alert(`El formato de la cabecera es incorrecto. Se esperaba: ${expectedHeader.join(',')}`);
+                    return;
+                }
+
+                const productsToImport = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',');
+                    const name = values[0]?.trim();
+                    const quantity = parseInt(values[2]);
+                    const purchasePrice = parseFloat(values[3]);
+                    const sellingPrice = parseFloat(values[4]);
+
+                    if (!name || isNaN(quantity) || isNaN(purchasePrice) || isNaN(sellingPrice)) {
+                        alert(`Error en la fila ${i + 1}: asegúrate de que el nombre no esté vacío y los valores numéricos sean correctos.`);
+                        return;
+                    }
+
+                    productsToImport.push({
+                        name: name,
+                        description: values[1]?.trim() || '',
+                        quantity: quantity,
+                        purchasePrice: purchasePrice,
+                        sellingPrice: sellingPrice,
+                        userId: userId
+                    });
+                }
+
+                if (productsToImport.length > 0) {
+                    try {
+                        const batch = writeBatch(db);
+                        const productsPath = `artifacts/${appId}/users/${userId}/products`;
+                        productsToImport.forEach(product => {
+                            const newProductRef = doc(collection(db, productsPath));
+                            batch.set(newProductRef, product);
+                        });
+                        await batch.commit();
+                        alert(`¡Se importaron ${productsToImport.length} productos con éxito!`);
+                    } catch (error) {
+                        console.error("Error al importar productos:", error);
+                        alert("Ocurrió un error durante la importación masiva.");
+                    }
+                }
+                importModal.classList.add('modal-hidden');
+                importModal.classList.remove('modal-visible');
+            };
+            reader.readAsText(file);
+            csvFileInput.value = '';
+        });
+
+        // --- MODAL DE PRODUCTO Y GENERACIÓN IA ---
+        document.getElementById('add-product-btn').addEventListener('click', () => {
+            productForm.reset();
+            document.getElementById('product-id').value = '';
+            document.getElementById('modal-title').textContent = 'Añadir Producto';
+            productModal.classList.remove('modal-hidden');
+            productModal.classList.add('modal-visible');
+        });
+        
+        document.getElementById('cancel-product-modal').addEventListener('click', () => {
+             productModal.classList.add('modal-hidden');
+             productModal.classList.remove('modal-visible');
+        });
+        
+        document.getElementById('generate-description-btn').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const productName = document.getElementById('product-name').value;
+            if (!productName.trim()) {
+                alert("Por favor, introduce un nombre de producto primero.");
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+            
+            const prompt = `Genera una descripción de venta corta y atractiva para el siguiente producto: '${productName}'. La descripción debe ser ideal para un catálogo, no más de 150 caracteres.`;
+            const description = await callGemini(prompt);
+            document.getElementById('product-description').value = description.replace(/["*]/g, '');
+            
+            btn.disabled = false;
+            btn.innerHTML = '✨ Generar';
+        });
+
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('product-modal-error');
+            errorEl.classList.add('hidden');
+
+            const id = document.getElementById('product-id').value;
+            const name = document.getElementById('product-name').value.trim();
+            const description = document.getElementById('product-description').value.trim();
+            const quantity = parseInt(document.getElementById('product-quantity').value);
+            const purchasePrice = parseFloat(document.getElementById('product-purchase-price').value);
+            const sellingPrice = parseFloat(document.getElementById('product-selling-price').value);
+
+            if (!name) {
+                errorEl.textContent = 'El nombre del producto es obligatorio.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (isNaN(quantity) || isNaN(purchasePrice) || isNaN(sellingPrice)) {
+                errorEl.textContent = 'Cantidad y precios deben ser números válidos.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            
+            const productData = { name, description, quantity, purchasePrice, sellingPrice, userId };
+            const productsPath = `artifacts/${appId}/users/${userId}/products`;
+            
+            try {
+                if (id) {
+                    await updateDoc(doc(db, productsPath, id), productData);
+                } else {
+                    await addDoc(collection(db, productsPath), productData);
+                }
+                productModal.classList.add('modal-hidden');
+                productModal.classList.remove('modal-visible');
+            } catch (error) {
+                console.error("Error al guardar el producto:", error);
+                errorEl.textContent = "Error al guardar el producto. Inténtalo de nuevo.";
+                errorEl.classList.remove('hidden');
+            }
+        });
+        
+        inventoryTableBody.addEventListener('click', (e) => {
+            const id = e.target.dataset.id;
+            if (!id || !userId) return;
+            
+            if (e.target.classList.contains('edit-btn')) {
+                const product = productsCache.find(p => p.id === id);
+                if (product) {
+                    document.getElementById('product-id').value = product.id;
+                    document.getElementById('product-name').value = product.name;
+                    document.getElementById('product-description').value = product.description || '';
+                    document.getElementById('product-quantity').value = product.quantity;
+                    document.getElementById('product-purchase-price').value = product.purchasePrice;
+                    document.getElementById('product-selling-price').value = product.sellingPrice;
+                    document.getElementById('modal-title').textContent = 'Editar Producto';
+                    productModal.classList.remove('modal-hidden');
+                    productModal.classList.add('modal-visible');
+                }
+            } else if (e.target.classList.contains('delete-btn')) {
+                productToDeleteId = id;
+                document.getElementById('delete-confirm-modal').classList.remove('modal-hidden');
+                document.getElementById('delete-confirm-modal').classList.add('modal-visible');
+            }
+        });
+
+        // --- LÓGICA DE BORRADO ---
+        const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+            deleteConfirmModal.classList.add('modal-hidden');
+            deleteConfirmModal.classList.remove('modal-visible');
+            productToDeleteId = null;
+        });
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            if (!productToDeleteId || !userId) return;
+            const productsPath = `artifacts/${appId}/users/${userId}/products`;
+            try {
+                await deleteDoc(doc(db, productsPath, productToDeleteId));
+            } catch (error) { 
+                console.error("Error al eliminar producto:", error); 
+                alert("No se pudo eliminar el producto.");
+            } finally {
+                deleteConfirmModal.classList.add('modal-hidden');
+                deleteConfirmModal.classList.remove('modal-visible');
+                productToDeleteId = null;
+            }
+        });
+
+        // --- ANÁLISIS DE VENTAS CON IA Y GRÁFICOS ---
+        const analysisModal = document.getElementById('analysis-modal');
+        const analysisContent = document.getElementById('analysis-content');
+
+        document.getElementById('analyze-sales-btn').addEventListener('click', async () => {
+            if (salesCache.length === 0) {
+                alert("No hay suficientes datos de ventas para analizar.");
+                return;
+            }
+            analysisContent.innerHTML = '<div class="flex justify-center items-center h-24"><div class="spinner"></div></div>';
+            analysisModal.classList.remove('modal-hidden');
+            analysisModal.classList.add('modal-visible');
+
+            // --- Lógica del Gráfico ---
+            const productSales = {};
+            salesCache.forEach(sale => {
+                sale.items.forEach(item => {
+                    const id = item.productId || item.name; // Fallback to name if id is missing for some reason
+                    if (!productSales[id]) {
+                        productSales[id] = { name: item.name, quantity: 0 };
+                    }
+                    productSales[id].quantity += item.quantity;
+                });
+            });
+
+            const sortedProducts = Object.values(productSales).sort((a, b) => b.quantity - a.quantity);
+            const topProducts = sortedProducts.slice(0, 5);
+            const chartLabels = topProducts.map(p => p.name);
+            const chartData = topProducts.map(p => p.quantity);
+            const chartCtx = document.getElementById('sales-chart').getContext('2d');
+            
+            if (salesChartInstance) salesChartInstance.destroy();
+
+            salesChartInstance = new Chart(chartCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Cantidad Vendida',
+                        data: chartData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#9ca3af', precision: 0 }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+                        x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+                    },
+                    plugins: { legend: { labels: { color: '#d1d5db' } } }
+                }
+            });
+
+            // --- Lógica de Análisis IA ---
+            const recentSales = salesCache.filter(s => s.createdAt).sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate()).slice(0, 20);
+            const salesDataString = recentSales.map(sale => {
+                const items = sale.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
+                return `- Cliente: ${sale.clientName}, Productos: ${items}, Total: ${formatCurrency(sale.total)}, Fecha: ${sale.createdAt.toDate().toLocaleDateString('es-CO')}`;
+            }).join('\n');
+            const prompt = `Actúa como un analista de negocios. A continuación se presentan datos de ventas recientes. Proporciona un resumen de 2-3 frases sobre las tendencias clave y sugiere una acción simple para mejorar las ventas. Tono alentador y fácil de entender.\n\nDatos:\n${salesDataString}`;
+            const analysisResult = await callGemini(prompt);
+            analysisContent.innerHTML = analysisResult.replace(/\n/g, '<br>');
+        });
+
+        document.getElementById('close-analysis-modal').addEventListener('click', () => {
+            analysisModal.classList.add('modal-hidden');
+            analysisModal.classList.remove('modal-visible');
+        });
+        
+        // --- LÓGICA DE VENTAS ---
+        const saleItemsContainer = document.getElementById('sale-items-container');
+        const addSaleItemBtn = document.getElementById('add-sale-item-btn');
+        const saleTotalEl = document.getElementById('sale-total');
+        const processSaleBtn = document.getElementById('process-sale-btn');
+        
+        function createSaleItemRow() {
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2 sale-item-row';
+            
+            let options = productsCache
+                .filter(p => p.quantity > 0)
+                .map(p => `<option value="${p.id}" data-price="${p.sellingPrice}" data-stock="${p.quantity}">${p.name} (Stock: ${p.quantity})</option>`).join('');
+
+            div.innerHTML = `
+                <select class="product-select flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg">
+                    <option value="">Selecciona un producto</option>
+                    ${options}
+                </select>
+                <input type="number" class="sale-quantity w-24 p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Cant." min="1">
+                <p class="item-total w-32 text-right font-medium">$0.00</p>
+                <button class="remove-sale-item-btn text-red-400 hover:text-red-300 p-2">&times;</button>
+            `;
+            saleItemsContainer.appendChild(div);
+        }
+        
+        addSaleItemBtn.addEventListener('click', createSaleItemRow);
+        
+        saleItemsContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-select') || e.target.classList.contains('sale-quantity')) {
+                updateSaleTotals();
+            }
+        });
+
+        saleItemsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-sale-item-btn')) {
+                e.target.parentElement.remove();
+                updateSaleTotals();
+            }
+        });
+        
+        function updateSaleTotals() {
+            let total = 0;
+            const rows = saleItemsContainer.querySelectorAll('.sale-item-row');
+            rows.forEach(row => {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.sale-quantity');
+                const itemTotalEl = row.querySelector('.item-total');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const price = parseFloat(selectedOption.dataset.price) || 0;
+                const quantity = parseInt(quantityInput.value) || 0;
+                const itemTotal = price * quantity;
+                itemTotalEl.textContent = formatCurrency(itemTotal);
+                total += itemTotal;
+            });
+            saleTotalEl.textContent = formatCurrency(total);
+        }
+        
+        processSaleBtn.addEventListener('click', async () => {
+             if (!userId) { alert("Error de sesión. Por favor recarga la página."); return; }
+             const clientName = document.getElementById('client-name').value.trim();
+             const clientPhone = document.getElementById('client-phone').value.trim();
+             if (!clientName) { alert("El nombre del cliente es obligatorio."); return; }
+             
+             const saleItems = [];
+             const rows = saleItemsContainer.querySelectorAll('.sale-item-row');
+             
+             for (const row of rows) {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.sale-quantity');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const productId = selectedOption.value;
+                const quantity = parseInt(quantityInput.value);
+
+                if (!productId || isNaN(quantity) || quantity <= 0) continue; 
+
+                const stock = parseInt(selectedOption.dataset.stock);
+                const price = parseFloat(selectedOption.dataset.price);
+
+                if (quantity > stock) {
+                    alert(`No hay suficiente stock para "${selectedOption.textContent}". Disponible: ${stock}`);
+                    return; 
+                }
+                
+                saleItems.push({ productId, quantity, price, name: selectedOption.textContent.split(' (')[0] });
+             }
+             
+             if (saleItems.length === 0) { alert("No has añadido ningún producto válido a la venta."); return; }
+
+             const totalSaleAmount = saleItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+             
+             try {
+                const batch = writeBatch(db);
+                const productsPath = `artifacts/${appId}/users/${userId}/products`;
+                const salesPath = `artifacts/${appId}/users/${userId}/sales`;
+                
+                saleItems.forEach(item => {
+                    const productRef = doc(db, productsPath, item.productId);
+                    const currentProduct = productsCache.find(p => p.id === item.productId);
+                    if (currentProduct) {
+                       const newStock = currentProduct.quantity - item.quantity;
+                       batch.update(productRef, { quantity: newStock });
+                    }
+                });
+
+                const saleRef = doc(collection(db, salesPath));
+                batch.set(saleRef, {
+                    userId,
+                    clientName,
+                    clientPhone,
+                    items: saleItems,
+                    total: totalSaleAmount,
+                    createdAt: serverTimestamp()
+                });
+                
+                await batch.commit();
+                
+                alert("¡Venta procesada con éxito!");
+                document.getElementById('client-name').value = '';
+                document.getElementById('client-phone').value = '';
+                saleItemsContainer.innerHTML = '';
+                createSaleItemRow();
+                updateSaleTotals();
+             } catch (error) { 
+                 console.error("Error al procesar la venta:", error); 
+                 alert("No se pudo procesar la venta. Inténtalo de nuevo."); 
+             }
+        });
+        
+        // --- LÓGICA DE COMPRAS ---
+        const purchaseItemsContainer = document.getElementById('purchase-items-container');
+        const addPurchaseItemBtn = document.getElementById('add-purchase-item-btn');
+        const purchaseTotalEl = document.getElementById('purchase-total');
+        const processPurchaseBtn = document.getElementById('process-purchase-btn');
+
+        function createPurchaseItemRow() {
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2 purchase-item-row';
+            
+            let options = productsCache.map(p => `<option value="${p.id}" data-price="${p.purchasePrice}">${p.name}</option>`).join('');
+
+            div.innerHTML = `
+                <select class="product-select flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg">
+                    <option value="">Selecciona un producto</option>
+                    ${options}
+                </select>
+                <input type="number" class="purchase-quantity w-24 p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Cant." min="1">
+                <p class="item-total w-32 text-right font-medium">$0.00</p>
+                <button class="remove-purchase-item-btn text-red-400 hover:text-red-300 p-2">&times;</button>
+            `;
+            purchaseItemsContainer.appendChild(div);
+        }
+
+        addPurchaseItemBtn.addEventListener('click', createPurchaseItemRow);
+
+        purchaseItemsContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-select') || e.target.classList.contains('purchase-quantity')) {
+                updatePurchaseTotals();
+            }
+        });
+
+        purchaseItemsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-purchase-item-btn')) {
+                e.target.parentElement.remove();
+                updatePurchaseTotals();
+            }
+        });
+
+        function updatePurchaseTotals() {
+            let total = 0;
+            const rows = purchaseItemsContainer.querySelectorAll('.purchase-item-row');
+            rows.forEach(row => {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.purchase-quantity');
+                const itemTotalEl = row.querySelector('.item-total');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const price = parseFloat(selectedOption.dataset.price) || 0;
+                const quantity = parseInt(quantityInput.value) || 0;
+                const itemTotal = price * quantity;
+                itemTotalEl.textContent = formatCurrency(itemTotal);
+                total += itemTotal;
+            });
+            purchaseTotalEl.textContent = formatCurrency(total);
+        }
+
+        processPurchaseBtn.addEventListener('click', async () => {
+             if (!userId) { alert("Error de sesión. Por favor recarga la página."); return; }
+             const supplierName = document.getElementById('supplier-name').value.trim();
+             const supplierPhone = document.getElementById('supplier-phone').value.trim();
+             if (!supplierName) { alert("El nombre del proveedor es obligatorio."); return; }
+             
+             const purchaseItems = [];
+             const rows = purchaseItemsContainer.querySelectorAll('.purchase-item-row');
+             
+             for (const row of rows) {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.purchase-quantity');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const productId = selectedOption.value;
+                const quantity = parseInt(quantityInput.value);
+
+                if (!productId || isNaN(quantity) || quantity <= 0) continue; 
+                
+                const price = parseFloat(selectedOption.dataset.price);
+                purchaseItems.push({ productId, quantity, price, name: selectedOption.textContent });
+             }
+             
+             if (purchaseItems.length === 0) { alert("No has añadido ningún producto válido a la compra."); return; }
+
+             const totalPurchaseAmount = purchaseItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+             
+             try {
+                const batch = writeBatch(db);
+                const productsPath = `artifacts/${appId}/users/${userId}/products`;
+                const purchasesPath = `artifacts/${appId}/users/${userId}/purchases`;
+                
+                purchaseItems.forEach(item => {
+                    const productRef = doc(db, productsPath, item.productId);
+                    const currentProduct = productsCache.find(p => p.id === item.productId);
+                    if (currentProduct) {
+                       const newStock = currentProduct.quantity + item.quantity;
+                       batch.update(productRef, { quantity: newStock });
+                    }
+                });
+
+                const purchaseRef = doc(collection(db, purchasesPath));
+                batch.set(purchaseRef, {
+                    userId,
+                    supplierName,
+                    supplierPhone,
+                    items: purchaseItems,
+                    total: totalPurchaseAmount,
+                    createdAt: serverTimestamp()
+                });
+                
+                await batch.commit();
+                
+                alert("¡Compra registrada con éxito!");
+                document.getElementById('supplier-name').value = '';
+                document.getElementById('supplier-phone').value = '';
+                purchaseItemsContainer.innerHTML = '';
+                createPurchaseItemRow();
+                updatePurchaseTotals();
+             } catch (error) { 
+                 console.error("Error al registrar la compra:", error); 
+                 alert("No se pudo registrar la compra. Inténtalo de nuevo."); 
+             }
+        });
+
+
+        // --- DASHBOARD ---
+        function updateDashboard(products, sales, purchases) {
+             const inventoryValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
+             const totalRevenue = sales.reduce((sum, s) => sum + s.total, 0);
+             const totalPurchases = purchases.reduce((sum, p) => sum + p.total, 0);
+             const productsCount = products.reduce((sum, p) => sum + p.quantity, 0);
+
+             document.getElementById('dashboard-inventory-value').textContent = formatCurrency(inventoryValue);
+             document.getElementById('dashboard-total-revenue').textContent = formatCurrency(totalRevenue);
+             document.getElementById('dashboard-total-purchases').textContent = formatCurrency(totalPurchases);
+             document.getElementById('dashboard-products-count').textContent = productsCount;
+            
+            const recentSalesEl = document.getElementById('dashboard-recent-sales');
+            recentSalesEl.innerHTML = '';
+            if (sales.length === 0) { recentSalesEl.innerHTML = '<p class="text-gray-500">No hay ventas registradas aún.</p>'; return; }
+            
+            const sortedSales = sales.filter(s => s.createdAt).sort((a, b) => b.createdAt.toDate() - a.createdAt.toDate()).slice(0, 10);
+            sortedSales.forEach(sale => {
+                const saleDiv = document.createElement('div');
+                saleDiv.className = 'p-3 border-b border-gray-700 text-sm';
+                const itemsSummary = sale.items.map(item => `${item.quantity}x ${item.name}`).join(', ');
+                saleDiv.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div><p class="font-bold text-gray-200">${sale.clientName || 'Venta General'}</p><p class="text-gray-400">${itemsSummary}</p></div>
+                        <span class="text-green-400 font-bold text-right">${formatCurrency(sale.total)}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1 text-right">${sale.createdAt.toDate().toLocaleString('es-CO')}</div>`;
+                recentSalesEl.appendChild(saleDiv);
+            });
+        }
+        
+        // --- LISTENERS DE FIREBASE ---
+        function setupRealtimeListeners() {
+            if (!userId) return;
+
+            // Detener listeners anteriores
+            unsubscribeProducts();
+            unsubscribeSales();
+            unsubscribePurchases();
+
+            const productsPath = `artifacts/${appId}/users/${userId}/products`;
+            const salesPath = `artifacts/${appId}/users/${userId}/sales`;
+            const purchasesPath = `artifacts/${appId}/users/${userId}/purchases`;
+            
+            const qProducts = query(collection(db, productsPath), where("userId", "==", userId));
+            unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
+                productsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderInventory(productsCache);
+                if (!pages.sales.classList.contains('hidden')) {
+                    saleItemsContainer.innerHTML = ''; createSaleItemRow();
+                }
+                if (!pages.purchases.classList.contains('hidden')) {
+                    purchaseItemsContainer.innerHTML = ''; createPurchaseItemRow();
+                }
+                updateDashboard(productsCache, salesCache, purchasesCache);
+            }, (error) => { console.error("Error en listener de productos:", error); });
+            
+            const qSales = query(collection(db, salesPath), where("userId", "==", userId));
+            unsubscribeSales = onSnapshot(qSales, (snapshot) => {
+                 salesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                 updateDashboard(productsCache, salesCache, purchasesCache);
+            }, (error) => { console.error("Error en listener de ventas:", error); });
+            
+            const qPurchases = query(collection(db, purchasesPath), where("userId", "==", userId));
+            unsubscribePurchases = onSnapshot(qPurchases, (snapshot) => {
+                 purchasesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                 updateDashboard(productsCache, salesCache, purchasesCache);
+            }, (error) => { console.error("Error en listener de compras:", error); });
+        }
+        
+    </script>
+</body>
+</html>
+
