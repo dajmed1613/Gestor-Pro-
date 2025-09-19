@@ -346,7 +346,7 @@
         // --- IMPORTS Y CONFIGURACIÓN DE FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, where, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyBXHEzRkXedFKBH5vzGq_QB22bZ2KwJqxc",
@@ -813,7 +813,6 @@
              }
         });
         
-        // El resto de las funciones de la app (modales, etc.)
         const productModal = document.getElementById('product-modal');
         const productForm = document.getElementById('product-form');
 
@@ -914,6 +913,30 @@
                 productToDeleteId = null;
             }
         });
+        
+        // --- IMPORT/EXPORT/ANALYSIS BUTTONS & MODALS ---
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            if (productsCache.length === 0) { alert("No hay productos para exportar."); return; }
+            const headers = ["Nombre", "Descripción", "Cantidad", "Precio Compra", "Precio Venta"];
+            const rows = productsCache.map(p => [ `"${(p.name || '').replace(/"/g, '""')}"`, `"${(p.description || '').replace(/"/g, '""')}"`, p.quantity, p.purchasePrice, p.sellingPrice ].join(','));
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "inventario.csv";
+            link.click();
+        });
+
+        document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('import-modal').classList.remove('modal-hidden'));
+        document.getElementById('cancel-import-btn').addEventListener('click', () => document.getElementById('import-modal').classList.add('modal-hidden'));
+        document.getElementById('confirm-import-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
+
+        document.getElementById('csv-file-input').addEventListener('change', (event) => {
+            // Lógica de importación
+        });
+
+        document.getElementById('analyze-sales-btn').addEventListener('click', () => document.getElementById('analysis-modal').classList.remove('modal-hidden'));
+        document.getElementById('close-analysis-modal').addEventListener('click', () => document.getElementById('analysis-modal').classList.add('modal-hidden'));
 
     </script>
 </body>
