@@ -172,12 +172,13 @@
                     </div>
                     <input type="file" id="csv-file-input" class="hidden" accept=".csv">
                     <div class="bg-gray-800 rounded-xl overflow-x-auto">
-                        <table class="w-full text-left min-w-[600px]">
+                        <table class="w-full text-left min-w-[700px]">
                             <thead class="bg-gray-700">
                                 <tr>
                                     <th class="p-4">Producto</th>
                                     <th class="p-4">Cantidad</th>
-                                    <th class="p-4">Precio Venta</th>
+                                    <th class="p-4">Precio Unit.</th>
+                                    <th class="p-4">Valor Total</th>
                                     <th class="p-4">Acciones</th>
                                 </tr>
                             </thead>
@@ -514,10 +515,11 @@
         function renderInventory(products) {
             inventoryTableBody.innerHTML = '';
             if (products.length === 0) {
-                 inventoryTableBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay productos.</td></tr>`;
+                 inventoryTableBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">No hay productos.</td></tr>`;
                  return;
             }
             products.forEach(product => {
+                const totalValue = product.sellingPrice * product.quantity;
                 const row = document.createElement('tr');
                 row.className = 'border-b border-gray-700 hover:bg-gray-700/50';
                 row.innerHTML = `
@@ -527,6 +529,7 @@
                     </td>
                     <td class="p-4">${product.quantity}</td>
                     <td class="p-4">${formatCurrency(product.sellingPrice)}</td>
+                    <td class="p-4 font-medium text-green-400">${formatCurrency(totalValue)}</td>
                     <td class="p-4 flex items-center space-x-2">
                         <button class="edit-btn p-2 rounded-md hover:bg-blue-500/20" data-id="${product.id}" title="Editar">✏️</button>
                         <button class="delete-btn p-2 rounded-md hover:bg-red-500/20" data-id="${product.id}" title="Eliminar">🗑️</button>
