@@ -346,7 +346,7 @@
     <script type="module">
         // --- IMPORTS Y CONFIGURACIÓN DE FIREBASE ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, query, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -399,25 +399,34 @@
         sidebarOverlay.addEventListener('click', closeSidebar);
         
         // --- MANEJO DE AUTENTICACIÓN ---
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                document.getElementById('user-email').textContent = user.email;
-                authContainer.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                setupRealtimeListeners();
-            } else {
-                userId = null;
-                appContainer.classList.add('hidden');
-                authContainer.classList.remove('hidden');
-                unsubscribeProducts();
-                unsubscribeSales();
-                unsubscribePurchases();
-                productsCache = []; salesCache = []; purchasesCache = [];
-                renderInventory([]);
-                updateDashboard([], [], []);
+        async function initializeAuth() {
+            try {
+                await setPersistence(auth, browserLocalPersistence);
+            } catch (error) {
+                console.error("No se pudo establecer la persistencia de la sesión:", error);
             }
-        });
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-email').textContent = user.email;
+                    authContainer.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    setupRealtimeListeners();
+                } else {
+                    userId = null;
+                    appContainer.classList.add('hidden');
+                    authContainer.classList.remove('hidden');
+                    unsubscribeProducts();
+                    unsubscribeSales();
+                    unsubscribePurchases();
+                    productsCache = []; salesCache = []; purchasesCache = [];
+                    renderInventory([]);
+                    updateDashboard([], [], []);
+                }
+            });
+        }
+        initializeAuth();
         
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
