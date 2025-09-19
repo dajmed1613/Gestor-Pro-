@@ -508,6 +508,7 @@
         function formatCurrency(value) {
             return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value || 0);
         }
+
         const inventoryTableBody = document.getElementById('inventory-table-body');
         
         function renderInventory(products) {
@@ -535,6 +536,60 @@
             });
         }
         
+        const saleItemsContainer = document.getElementById('sale-items-container');
+
+        function createSaleItemRow() {
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2 sale-item-row';
+            
+            let options = productsCache
+                .filter(p => p.quantity > 0)
+                .map(p => `<option value="${p.id}" data-price="${p.sellingPrice}" data-stock="${p.quantity}">${p.name} (Stock: ${p.quantity})</option>`).join('');
+
+            div.innerHTML = `
+                <select class="product-select flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg">
+                    <option value="">Selecciona un producto</option>
+                    ${options}
+                </select>
+                <input type="number" class="sale-quantity w-24 p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Cant." min="1">
+                <p class="item-total w-32 text-right font-medium">$0.00</p>
+                <button class="remove-sale-item-btn text-red-400 hover:text-red-300 p-2">&times;</button>
+            `;
+            saleItemsContainer.appendChild(div);
+        }
+        
+        function updateSaleTotals() {
+            let total = 0;
+            const rows = saleItemsContainer.querySelectorAll('.sale-item-row');
+            rows.forEach(row => {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.sale-quantity');
+                const itemTotalEl = row.querySelector('.item-total');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const price = parseFloat(selectedOption.dataset.price) || 0;
+                const quantity = parseInt(quantityInput.value) || 0;
+                const itemTotal = price * quantity;
+                itemTotalEl.textContent = formatCurrency(itemTotal);
+                total += itemTotal;
+            });
+            document.getElementById('sale-total').textContent = formatCurrency(total);
+        }
+
+        document.getElementById('add-sale-item-btn').addEventListener('click', createSaleItemRow);
+
+        saleItemsContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-select') || e.target.classList.contains('sale-quantity')) {
+                updateSaleTotals();
+            }
+        });
+
+        saleItemsContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-sale-item-btn')) {
+                e.target.closest('.sale-item-row').remove();
+                updateSaleTotals();
+            }
+        });
+
         document.getElementById('process-sale-btn').addEventListener('click', async () => {
             if (!userId) { alert("Error de sesión."); return; }
             const clientName = document.getElementById('client-name').value.trim();
@@ -594,6 +649,7 @@
                 createSaleItemRow();
                 updateSaleTotals();
              } catch (error) { 
+                 console.error("Error al procesar la venta:", error);
                  alert("No se pudo procesar la venta."); 
              }
         });
@@ -653,28 +709,211 @@
                  updateDashboard(productsCache, salesCache, purchasesCache);
             });
         }
+        
+        const purchaseItemsContainer = document.getElementById('purchase-items-container');
 
-        async function callGemini(prompt) {
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-            const payload = { contents: [{ parts: [{ text: prompt }] }] };
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!response.ok) throw new Error(`API Error: ${response.status}`);
-                const result = await response.json();
-                return result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            } catch (error) {
-                return "Hubo un error al contactar la IA.";
-            }
+        function createPurchaseItemRow() {
+            const div = document.createElement('div');
+            div.className = 'flex items-center space-x-2 purchase-item-row';
+            let options = productsCache.map(p => `<option value="${p.id}" data-price="${p.purchasePrice}">${p.name}</option>`).join('');
+            div.innerHTML = `
+                <select class="product-select flex-1 p-3 bg-gray-700 border border-gray-600 rounded-lg">
+                    <option value="">Selecciona un producto</option>
+                    ${options}
+                </select>
+                <input type="number" class="purchase-quantity w-24 p-3 bg-gray-700 border border-gray-600 rounded-lg" placeholder="Cant." min="1">
+                <p class="item-total w-32 text-right font-medium">$0.00</p>
+                <button class="remove-purchase-item-btn text-red-400 hover:text-red-300 p-2">&times;</button>
+            `;
+            purchaseItemsContainer.appendChild(div);
         }
-        const createSaleItemRow = () => {};
-        const updateSaleTotals = () => {};
-        const createPurchaseItemRow = () => {};
-        const updatePurchaseTotals = () => {};
+
+        function updatePurchaseTotals() {
+            let total = 0;
+            const rows = purchaseItemsContainer.querySelectorAll('.purchase-item-row');
+            rows.forEach(row => {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.purchase-quantity');
+                const itemTotalEl = row.querySelector('.item-total');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const price = parseFloat(selectedOption.dataset.price) || 0;
+                const quantity = parseInt(quantityInput.value) || 0;
+                const itemTotal = price * quantity;
+                itemTotalEl.textContent = formatCurrency(itemTotal);
+                total += itemTotal;
+            });
+            document.getElementById('purchase-total').textContent = formatCurrency(total);
+        }
+
+        document.getElementById('add-purchase-item-btn').addEventListener('click', createPurchaseItemRow);
+        
+        purchaseItemsContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-select') || e.target.classList.contains('purchase-quantity')) {
+                updatePurchaseTotals();
+            }
+        });
+
+        purchaseItemsContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.remove-purchase-item-btn')) {
+                e.target.closest('.purchase-item-row').remove();
+                updatePurchaseTotals();
+            }
+        });
+
+        document.getElementById('process-purchase-btn').addEventListener('click', async () => {
+             if (!userId) { alert("Error de sesión."); return; }
+             const supplierName = document.getElementById('supplier-name').value.trim();
+             const supplierPhone = document.getElementById('supplier-phone').value.trim();
+             if (!supplierName) { alert("El nombre del proveedor es obligatorio."); return; }
+             const purchaseItems = [];
+             const rows = purchaseItemsContainer.querySelectorAll('.purchase-item-row');
+             for (const row of rows) {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.purchase-quantity');
+                const selectedOption = productSelect.options[productSelect.selectedIndex];
+                const productId = selectedOption.value;
+                const quantity = parseInt(quantityInput.value);
+                if (!productId || isNaN(quantity) || quantity <= 0) continue; 
+                const price = parseFloat(selectedOption.dataset.price);
+                purchaseItems.push({ productId, quantity, price, name: selectedOption.textContent });
+             }
+             if (purchaseItems.length === 0) { alert("No has añadido ningún producto válido a la compra."); return; }
+             const totalPurchaseAmount = purchaseItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+             try {
+                const batch = writeBatch(db);
+                const productsPath = `users/${userId}/products`;
+                const purchasesPath = `users/${userId}/purchases`;
+                purchaseItems.forEach(item => {
+                    const productRef = doc(db, productsPath, item.productId);
+                    const currentProduct = productsCache.find(p => p.id === item.productId);
+                    if (currentProduct) {
+                       const newStock = currentProduct.quantity + item.quantity;
+                       batch.update(productRef, { quantity: newStock });
+                    }
+                });
+                const purchaseRef = doc(collection(db, purchasesPath));
+                batch.set(purchaseRef, {
+                    userId,
+                    supplierName,
+                    supplierPhone,
+                    items: purchaseItems,
+                    total: totalPurchaseAmount,
+                    createdAt: serverTimestamp()
+                });
+                await batch.commit();
+                alert("¡Compra registrada con éxito!");
+                document.getElementById('supplier-name').value = '';
+                document.getElementById('supplier-phone').value = '';
+                purchaseItemsContainer.innerHTML = '';
+                createPurchaseItemRow();
+                updatePurchaseTotals();
+             } catch (error) { 
+                 console.error("Error al registrar la compra:", error); 
+                 alert("No se pudo registrar la compra."); 
+             }
+        });
+        
+        // El resto de las funciones de la app (modales, etc.)
+        const productModal = document.getElementById('product-modal');
+        const productForm = document.getElementById('product-form');
+
+        document.getElementById('add-product-btn').addEventListener('click', () => {
+            productForm.reset();
+            document.getElementById('product-id').value = '';
+            document.getElementById('modal-title').textContent = 'Añadir Producto';
+            productModal.classList.remove('modal-hidden');
+            productModal.classList.add('modal-visible');
+        });
+        
+        document.getElementById('cancel-product-modal').addEventListener('click', () => {
+             productModal.classList.add('modal-hidden');
+             productModal.classList.remove('modal-visible');
+        });
+        
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('product-modal-error');
+            errorEl.classList.add('hidden');
+
+            const id = document.getElementById('product-id').value;
+            const name = document.getElementById('product-name').value.trim();
+            const description = document.getElementById('product-description').value.trim();
+            const quantity = parseInt(document.getElementById('product-quantity').value);
+            const purchasePrice = parseFloat(document.getElementById('product-purchase-price').value);
+            const sellingPrice = parseFloat(document.getElementById('product-selling-price').value);
+
+            if (!name) {
+                errorEl.textContent = 'El nombre del producto es obligatorio.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (isNaN(quantity) || isNaN(purchasePrice) || isNaN(sellingPrice)) {
+                errorEl.textContent = 'Cantidad y precios deben ser números válidos.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            
+            const productData = { name, description, quantity, purchasePrice, sellingPrice, userId };
+            const productsPath = `users/${userId}/products`;
+            
+            try {
+                if (id) {
+                    await updateDoc(doc(db, productsPath, id), productData);
+                } else {
+                    await addDoc(collection(db, productsPath), productData);
+                }
+                productModal.classList.add('modal-hidden');
+                productModal.classList.remove('modal-visible');
+            } catch (error) {
+                console.error("Error al guardar el producto:", error);
+                errorEl.textContent = "Error al guardar el producto. Inténtalo de nuevo.";
+                errorEl.classList.remove('hidden');
+            }
+        });
+
+        inventoryTableBody.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn || !userId) return;
+            const id = btn.dataset.id;
+            if (btn.classList.contains('edit-btn')) {
+                const product = productsCache.find(p => p.id === id);
+                if (product) {
+                    document.getElementById('product-id').value = product.id;
+                    document.getElementById('product-name').value = product.name;
+                    document.getElementById('product-description').value = product.description || '';
+                    document.getElementById('product-quantity').value = product.quantity;
+                    document.getElementById('product-purchase-price').value = product.purchasePrice;
+                    document.getElementById('product-selling-price').value = product.sellingPrice;
+                    document.getElementById('modal-title').textContent = 'Editar Producto';
+                    productModal.classList.remove('modal-hidden');
+                    productModal.classList.add('modal-visible');
+                }
+            } else if (btn.classList.contains('delete-btn')) {
+                 productToDeleteId = id;
+                 document.getElementById('delete-confirm-modal').classList.remove('modal-hidden');
+                 document.getElementById('delete-confirm-modal').classList.add('modal-visible');
+            }
+        });
+
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => {
+            document.getElementById('delete-confirm-modal').classList.add('modal-hidden');
+            document.getElementById('delete-confirm-modal').classList.remove('modal-visible');
+            productToDeleteId = null;
+        });
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            if (!productToDeleteId || !userId) return;
+            const productsPath = `users/${userId}/products`;
+            try {
+                await deleteDoc(doc(db, productsPath, productToDeleteId));
+            } catch (error) { 
+                alert("No se pudo eliminar el producto.");
+            } finally {
+                document.getElementById('delete-confirm-modal').classList.add('modal-hidden');
+                document.getElementById('delete-confirm-modal').classList.remove('modal-visible');
+                productToDeleteId = null;
+            }
+        });
 
     </script>
 </body>
