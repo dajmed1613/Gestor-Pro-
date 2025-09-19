@@ -932,9 +932,89 @@
         document.getElementById('confirm-import-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
 
         document.getElementById('csv-file-input').addEventListener('change', (event) => {
-            // Lógica de importación
-        });
+            const file = event.target.files[0];
+            if (!file) return;
 
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const text = e.target.result;
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+
+                if (lines.length < 2) {
+                    alert("El archivo CSV está vacío o solo contiene la cabecera.");
+                    return;
+                }
+                
+                function parseCsvLine(line) {
+                    const result = [];
+                    let current = '';
+                    let inQuotes = false;
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"' && (i === 0 || line[i-1] !== '\\')) { 
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            result.push(current.replace(/^"|"$/g, '').trim()); 
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    result.push(current.replace(/^"|"$/g, '').trim());
+                    return result;
+                }
+
+                const header = parseCsvLine(lines[0]);
+                const expectedHeader = ["Nombre", "Descripción", "Cantidad", "Precio Compra", "Precio Venta"];
+                if (header.length !== expectedHeader.length || !header.every((value, index) => value === expectedHeader[index])) {
+                    alert(`El formato de la cabecera es incorrecto. Se esperaba: ${expectedHeader.join(',')}`);
+                    return;
+                }
+
+                const productsToImport = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const values = parseCsvLine(lines[i]);
+                    if (values.length !== 5) {
+                        console.warn(`Skipping malformed line ${i+1}: ${lines[i]}`);
+                        continue; 
+                    }
+                    
+                    const name = values[0];
+                    const description = values[1];
+                    const quantity = parseInt(values[2]);
+                    const purchasePrice = parseFloat(values[3]);
+                    const sellingPrice = parseFloat(values[4]);
+
+                    if (!name || isNaN(quantity) || isNaN(purchasePrice) || isNaN(sellingPrice)) {
+                        console.warn(`Skipping invalid line ${i+1}: ${lines[i]}`);
+                        continue;
+                    }
+
+                    productsToImport.push({ name, description, quantity, purchasePrice, sellingPrice, userId });
+                }
+                
+                if (productsToImport.length > 0) {
+                    try {
+                        const batch = writeBatch(db);
+                        const productsPath = `users/${userId}/products`;
+                        productsToImport.forEach(product => {
+                            const newProductRef = doc(collection(db, productsPath));
+                            batch.set(newProductRef, product);
+                        });
+                        await batch.commit();
+                        alert(`¡Se importaron ${productsToImport.length} productos con éxito!`);
+                    } catch (error) {
+                        console.error("Error al importar productos:", error);
+                        alert("Ocurrió un error durante la importación masiva.");
+                    }
+                } else {
+                    alert("No se encontraron productos válidos para importar en el archivo.");
+                }
+                document.getElementById('import-modal').classList.add('modal-hidden');
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        });
         document.getElementById('analyze-sales-btn').addEventListener('click', () => document.getElementById('analysis-modal').classList.remove('modal-hidden'));
         document.getElementById('close-analysis-modal').addEventListener('click', () => document.getElementById('analysis-modal').classList.add('modal-hidden'));
 
